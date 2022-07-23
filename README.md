@@ -7,4 +7,4 @@ Project này demo một quá trình thu thập và xử lý dữ liệu đơn gi
 
 Mục tiêu: có thể phản ánh được sự suy giảm về giá của các cổ phiếu giai đoạn giữa năm so với đầu năm, cũng như biết ngành nào biến động ít nhất, nhiều nhất.
 
-Chi tiết project có thể tìm đọc tại: 
+Chi tiết project có thể tìm đọc tại: https://cuongpham.substack.com/p/visualization-with-d3js-truc-quan?sd=pf

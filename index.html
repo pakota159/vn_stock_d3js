@@ -59,7 +59,7 @@
         .style("font-family", "sans-serif")
         .style("font-size", "20")
         .style("opacity", "0.7")
-        .text("Mức thay đổi giá cổ phiếu vốn hoá lớn nhất của từng ngành tại ngày: ");
+        .text("Mức thay đổi giá cổ phiếu vốn hoá lớn nhất của từng ngành tại ngàyt: ");
 
 
     // Nền cho chart
@@ -86,11 +86,15 @@
             return a - b
         });
 
+        // Keys này là các ngày được sắp xếp thứ tự từ sớm nhất đến muộn nhất
         keys = keys.map(function(x){
             return x.format("YYYY-MM-DD")            
         })
+
+        // Loại bỏ giá trị đầu tiên trong keys, vì bị lỗi, phần này do data xử lý không ổn lắm
         keys.shift()
 
+        // Convert giá trị close (giá cổ phiếu) từ dạng string sang Float
         keys.forEach(function(k){ 
             data.forEach(function(d){
                 d[k] = (parseFloat(d[k]))
@@ -98,12 +102,16 @@
         });
 
         console.log(data)
-        // Lấy industry
+        
+        // Lấy industry trong data
         let industry = Array.from(new Set(data.map((d) => d.industry)));
 
+        // Theme màu cho ngành
         let color = d3.scaleOrdinal().domain(industry).range(d3.schemePaired);
 
+        // Lấy giá trị lớn nhất nhỏ nhất của Marketcap
         let marketcapDomain = d3.extent(data.map((d) => +d["market_cap"]));
+        // Size của Bubble được scale theo Market Cap
         let size = d3.scaleSqrt().domain(marketcapDomain).range([10, 20]);
 
         let xScale = d3
@@ -168,6 +176,7 @@
 
         var current_date = keys[0];
 
+        // Vẽ Bubble, mỗi bubble là một cổ phiếu tại một ngày xác định
         let bubbles = svg
             .selectAll(".circ")
             .data(data)
@@ -182,12 +191,13 @@
                 return yScale(d[current_date])
             });
         
-        // Stimulate
+        // Simulation các tính chất vật lý của Bubble
         let simulation = d3.forceSimulation()
 
             .force("x", d3.forceX(function (d) {
                 return xScale(d.industry);
-            }).strength(0.09))
+            }).strength(0.09)) // Strength thể hiện mức độ mạnh yếu của 
+            // lực kéo theo chiều ngang (nếu là xScale)
 
             .force("y", d3.forceY(function (d) {
                 return yScale(d[current_date])
@@ -196,7 +206,8 @@
             .force("collide", d3.forceCollide()
                 .radius(function (d) {
                     return size(d["market_cap"]);
-                }))
+                })) // Collide để định nghĩa việc va chạm giữa các bubble
+                // giới hạn là bán kính các bubble
 
         simulation.nodes(data)
             .on("tick", ticked)
@@ -205,20 +216,21 @@
             bubbles.attr("cx", function (d) {
                 return d.x;
             }).attr("cy", function (d) {
-                // console.log(d.y)
                 return d.y;
             })
         }
 
         let counter = 0;
 
+        // setInterval để gọi hàm sau một khoảng thời gian nhất định
+        // mô phỏng các Frame hoạt hoạ
         setInterval(function () {
             if (counter == keys.length) {
                 counter = 0;
             }
 
             current_date = keys[counter];
-            // console.log(current_date)
+
             simulation
                 .alpha(0.5)
                 .alphaTarget(0.3)
