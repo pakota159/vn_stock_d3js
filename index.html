@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+    <title>Swarm Plot</title>
+</head>
+<style>
+    /* set the CSS */
+    body {
+        background-color: #eeeeee;
+    }
+
+    .line {
+        fill: none;
+        stroke: steelblue;
+        stroke-width: 2px;
+    }
+
+    #grid line {
+        stroke: lightgrey;
+        stroke-opacity: 0.7;
+        shape-rendering: crispEdges;
+    }
+
+    #grid path {
+        stroke-width: 0;
+    }
+</style>
+
+<body>
+</body>
+
+</html>
+<script>
+    // Setup kích thước màn hình
+    const margin = { top: 70, right: 20, bottom: 30, left: 50 },
+        width = 1250 - margin.left - margin.right,
+        height = 600 - margin.top - margin.bottom;
+
+    // Khởi tạo object svg
+    let svg = d3
+        .select("body")
+        .append("svg")
+        .attr("height", height + margin.top + margin.bottom)
+        .attr("width", width + margin.left + margin.right)
+        .append("g")
+        .attr("id", "base_g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+    // Thêm title cho chart
+    svg.append("text")
+        .attr("id", "title")
+        .attr("x", margin.left / 2)
+        .attr("y", -margin.top / 2)
+        .style("font-family", "sans-serif")
+        .style("font-size", "20")
+        .style("opacity", "0.7")
+        .text("Mức thay đổi giá cổ phiếu vốn hoá lớn nhất của từng ngành tại ngày: ");
+
+
+    // Nền cho chart
+    svg.append("rect")
+        .attr("width", "100%")
+        .attr("height", "100%")
+        .attr("fill", "#eeeeee");
+
+    // Khi mở trang lên, load data.csv
+    d3.csv("data.csv").then((data) => {
+
+        // Lấy các ngày trong data và sắp xếp theo thứ tự tăng dần
+        keys = []
+
+        // get only date from data
+        Object.entries(data[0]).forEach(([k, v]) => {
+            if (!["ticker", "industry", "market_cap"].includes(k)) {
+                d = moment(k)
+                keys.push(d)
+            }
+        })
+
+        keys.sort(function (a, b) {
+            return a - b
+        });
+
+        keys = keys.map(function(x){
+            return x.format("YYYY-MM-DD")            
+        })
+        keys.shift()
+
+        keys.forEach(function(k){ 
+            data.forEach(function(d){
+                d[k] = (parseFloat(d[k]))
+            })
+        });
+
+        console.log(data)
+        // Lấy industry
+        let industry = Array.from(new Set(data.map((d) => d.industry)));
+
+        let color = d3.scaleOrdinal().domain(industry).range(d3.schemePaired);
+
+        let marketcapDomain = d3.extent(data.map((d) => +d["market_cap"]));
+        let size = d3.scaleSqrt().domain(marketcapDomain).range([10, 20]);
+
+        let xScale = d3
+            .scaleBand()
+            .padding(1)
+            .domain(industry)
+            .range([margin.left, width - margin.left]);
+
+        let yScale = d3.scaleLinear()
+            .domain([-100, 100])
+            .range([height, 0]);
+
+        // add the X Axis
+        let xAxis = svg.append("g")
+            .attr("id", "xAxis_g")
+            .attr("transform", "translate(0," + height + ")")
+            .call(d3.axisBottom(xScale));
+
+        xAxis.selectAll("line")
+            .style("opacity", "0");
+
+        xAxis.selectAll("path")
+            .style("stroke", "lightgrey")
+            .style("opacity", "0.7");
+
+        xAxis.selectAll("text")
+            .style("font-size", "13")
+            .style("opacity", "0.6");
+
+        // add the Y Axis
+        let yAxis = svg.append("g")
+            .attr("id", "xAxis_g")
+            // .attr("transform", "translate(0," + height + ")")
+            .call(d3.axisLeft(yScale).tickFormat(d => d + "%"));
+
+        yAxis.selectAll("line")
+            .style("opacity", "0");
+
+        yAxis.selectAll("path")
+            .style("stroke", "lightgrey")
+            .style("opacity", "0.7");
+
+        yAxis.selectAll("text")
+            .style("font-size", "13")
+            .style("opacity", "0.6");
+
+        // Add grid
+        svg.append("g")
+            .attr("id", "grid")
+            .attr("transform", "translate(0," + height + ")")
+            .call(d3.axisBottom(xScale)
+                .tickSize(-height)
+                .tickFormat("")
+            )
+
+        svg.append("g")
+            .attr("id", "grid")
+            .call(d3.axisLeft(yScale)
+                .tickSize(-width)
+                .tickFormat("")
+            )
+
+        var current_date = keys[0];
+
+        let bubbles = svg
+            .selectAll(".circ")
+            .data(data)
+            .enter()
+            .append("circle")
+            .attr("class", "circ")
+            .attr("stroke", "black")
+            .attr("fill", (d) => color(d.industry))
+            .attr("r", (d) => size(d["market_cap"]))
+            .attr("cx", (d) => xScale(d.industry))
+            .attr("cy", function(d){
+                return yScale(d[current_date])
+            });
+        
+        // Stimulate
+        let simulation = d3.forceSimulation()
+
+            .force("x", d3.forceX(function (d) {
+                return xScale(d.industry);
+            }).strength(0.09))
+
+            .force("y", d3.forceY(function (d) {
+                return yScale(d[current_date])
+            }).strength(0.03))
+
+            .force("collide", d3.forceCollide()
+                .radius(function (d) {
+                    return size(d["market_cap"]);
+                }))
+
+        simulation.nodes(data)
+            .on("tick", ticked)
+
+        function ticked() {
+            bubbles.attr("cx", function (d) {
+                return d.x;
+            }).attr("cy", function (d) {
+                // console.log(d.y)
+                return d.y;
+            })
+        }
+
+        let counter = 0;
+
+        setInterval(function () {
+            if (counter == keys.length) {
+                counter = 0;
+            }
+
+            current_date = keys[counter];
+            // console.log(current_date)
+            simulation
+                .alpha(0.5)
+                .alphaTarget(0.3)
+                .restart();
+
+            simulation.force("x").initialize(data);
+            simulation.force("y").initialize(data);
+            simulation.force("collide").initialize(data);
+
+            bubbles.attr("r", function (d) {
+                return size(d["market_cap"]);
+            }).attr("fill", function (d) {
+                return color(d.industry);
+            })
+
+            svg.select("#title")
+                .attr("x", margin.left / 2)
+                .attr("y", -margin.top / 2)
+                .style("font-family", "sans-serif")
+                .style("font-size", "20")
+                .style("opacity", "0.7")
+                .text("Mức thay đổi giá cổ phiếu vốn hoá lớn nhất của từng ngành tại ngày: " + current_date + " so với ngày 2022-01-04");
+
+            counter += 1;
+        }, 500);
+
+    });
+
+</script>
